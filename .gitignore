@@ -1,0 +1,307 @@
+
+# Dependencies
+server/node_modules/
+client/node_modules/
+node_modules/
+
+# Package lock files
+server/package-lock.json
+client/package-lock.json
+server/yarn.lock
+client/yarn.lock
+server/pnpm-lock.yaml
+client/pnpm-lock.yaml
+
+# Environment variables (SERVER)
+server/.env
+server/.env.local
+server/.env.*.local
+server/.env.development
+server/.env.production
+server/.env.test
+.env
+
+# Prisma
+server/prisma/*.db
+server/prisma/*.db-journal
+server/*.db
+server/*.db-journal
+server/src/generated/
+server/prisma/generated/
+
+# Build outputs (SERVER)
+server/dist/
+server/build/
+server/.next/
+server/out/
+
+# Logs (SERVER)
+server/logs/
+server/*.log
+server/npm-debug.log*
+server/yarn-debug.log*
+server/yarn-error.log*
+server/lerna-debug.log*
+
+# Testing (SERVER)
+server/coverage/
+server/.nyc_output/
+
+# Build outputs (CLIENT)
+client/dist/
+client/build/
+client/.vercel/
+client/.next/
+client/out/
+
+# Environment variables (CLIENT)
+client/.env
+client/.env.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
+client/.env.*.local
+
+# Testing (CLIENT)
+client/coverage/
+client/.nyc_output/
+
+# ============================================
+# BOTH CLIENT & SERVER
+# ============================================
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+.prettiercache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.local
+.env.*.local
+
+=========================================
+
+prisma/*.db
+prisma/*.db-journal
+*.db
+*.db-journal
+
+
+docker-compose.override.yml
+.dockerignore
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+
+# Visual Studio Code
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+*.vsix
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# JetBrains (WebStorm, IntelliJ)
+.idea/
+*.iml
+out/
+.idea_modules/
+*.iws
+*.ipr
+*.swp
+*.swo
+
+# Vim
+*.swp
+*.swo
+*~
+. *.un~
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+.sublime-grunt.cache
+.sublime-commands
+
+# Atom
+.atom/
+.history/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+.elc
+auto-save-list
+tramp
+
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.pkg
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Logs
+logs/
+*.log
+
+# Misc
+*.swp
+*.swo
+*~
+.ftpconfig
+*.iml
+*.tsbuildinfo
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+
+# Sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+*.csr
+*.private
+*.secret
+
+# Environment files with secrets
+*.env
+*.env.*
+!.env.example
+!.env.sample
+
+
+coverage/
+.nyc_output/
+.nyc_output
+*.lcov
+*.test-results
+*.test-report
+
+
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# Heroku
+.slugignore
+.heroku
+
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+dist/
+
+# Gatsby
+.cache/
+public/
+
+
+# Docusaurus
+.docusaurus/
+
+# Storybook
+storybook-static/
+
+# Temporal files
+*.tmp
+*.temp
+*.cache
+
+# Pug/Jade
+*.jade-cache
+
+# TypeScript
+*.tsbuildinfo
+
+# MongoDB
+*.bson
+*.mongodb
+
+# Redis
+*.rdb
+*.aof
