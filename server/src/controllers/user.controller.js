@@ -2,6 +2,19 @@ import prisma from '../lib/prisma.js';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+const generateTokens = (user) => {
+    const payload = {
+        userid: user.id,
+        email: user.email,
+        username: user.username
+    };
+
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userid: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+
+    return { accessToken, refreshToken };
+};
+
 const registerUser = async (req, res) => {
     if (!req.body.username || !req.body.email || !req.body.password) {
         return res.status(400).json({ message: 'Username, email, and password are required' });
@@ -52,18 +65,16 @@ const loginUser = async (req, res) => {
         }
 
         const match = await bcrypt.compare(req.body.password, user.password);
-
         if (!match) {
             return res.status(401).json({ message: 'Wrong username or password' });
         }
 
-        const payload = {
-            userid: user.id,
-            email: user.email,
-            username: user.username
-        };
+        const { accessToken, refreshToken } = generateTokens(user);
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken }
+        });
 
         const userToReturn = {
             _id: user.id,
@@ -73,9 +84,87 @@ const loginUser = async (req, res) => {
             createdAt: user.createdAt
         };
 
-        return res.status(200).json({ message: "User logged in successfully", user: userToReturn, token });
+        return res.status(200).json({
+            message: "User logged in successfully",
+            user: userToReturn,
+            accessToken,
+            refreshToken
+        });
     } catch (error) {
         return res.status(500).json({ message: 'Error when logging in user', error: error.message });
+    }
+};
+
+const handleRefreshToken = async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const refreshToken = authHeader && authHeader.split(' ')[1];
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'Refresh token is required' });
+    }
+
+    try {
+        const user = await prisma.user.findFirst({
+            where: { refreshToken }
+        });
+
+        if (!user) {
+            return res.status(403).json({ message: 'Invalid refresh token' });
+        }
+
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+        if (user.id !== decoded.userid) {
+            return res.status(403).json({ message: 'Invalid token payload' });
+        }
+
+        //  new Access Token
+        const accessToken = jwt.sign(
+            { userid: user.id, email: user.email, username: user.username },
+            process.env.JWT_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        // new Refresh Token
+        const newRefreshToken = jwt.sign(
+            { userid: user.id },
+            process.env.JWT_REFRESH_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken: newRefreshToken }
+        });
+
+        return res.status(200).json({ 
+            accessToken, 
+            refreshToken: newRefreshToken 
+        });
+    } catch (error) {
+        return res.status(403).json({ message: 'Invalid or expired refresh token' });
+    }
+};
+
+const logoutUser = async (req, res) => {
+    const refreshToken = req.body.refreshToken;
+    if (!refreshToken) return res.status(204).send();
+
+    try {
+        const user = await prisma.user.findFirst({
+            where: { refreshToken }
+        });
+
+        if (user) {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { refreshToken: null }
+            });
+        }
+
+        return res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error logging out', error: error.message });
     }
 };
 
@@ -128,7 +217,7 @@ const getUserByUsername = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-    const userId = req.user.userid; // Fixed casing: was req.user.userId
+    const userId = req.user.userid;
 
     try {
         const updateData = {};
@@ -177,6 +266,8 @@ const removeUser = async (req, res) => {
 export default {
     registerUser,
     loginUser,
+    handleRefreshToken,
+    logoutUser,
     profile,
     getUserByUsername,
     updateUser,
