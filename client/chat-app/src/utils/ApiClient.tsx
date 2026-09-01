@@ -14,7 +14,6 @@ export const useApiClient = () => {
 
     const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
 
-    // Prepare headers
     const isFormData = fetchOptions.body instanceof FormData;
     const headers: Record<string, string> = isFormData
       ? {}
@@ -22,7 +21,9 @@ export const useApiClient = () => {
 
     if (requiresAuth) {
       if (!accessToken) {
-        throw new Error("No access token available");
+        const error = new Error("No access token available");
+        (error as any).status = 401;
+        throw error;
       }
       headers["Authorization"] = `Bearer ${accessToken}`;
     }
@@ -34,6 +35,11 @@ export const useApiClient = () => {
 
     try {
       let response = await fetch(fullUrl, fetchOptions);
+
+      console.log(`API Call to ${fullUrl}:`, {
+        status: response.status,
+        statusText: response.statusText,
+      });
 
       if (response.status === 401 && requiresAuth) {
         console.log("Access token expired, attempting refresh...");

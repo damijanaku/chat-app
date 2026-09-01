@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useApiClient } from "../utils/ApiClient";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -9,6 +10,7 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
   const { apiCall } = useApiClient();
+  const { login } = useAuth();
 
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,13 +29,23 @@ const Login = () => {
       });
 
       if (response.ok) {
-        navigate("/dashboard");
+        const data = await response.json();
+        const accessToken = data.token || data.accessToken;
+        const refreshToken = data.refreshToken;
+        const userData = data.user || data;
+
+        if (accessToken && refreshToken) {
+          login(accessToken, refreshToken, userData);
+          navigate("/dashboard");
+        } else {
+          setErrorMessage("Invalid response from server. Missing tokens.");
+        }
       } else {
         const errorBody = await response.text();
         setErrorMessage(errorBody || "Login failed. Please try again.");
       }
     } catch (error) {
-      setErrorMessage("An error occurred while loging in. Please try again.");
+      setErrorMessage("An error occurred while logging in. Please try again.");
       console.error(error);
     } finally {
       setIsLoading(false);

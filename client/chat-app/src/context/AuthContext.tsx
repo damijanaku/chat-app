@@ -22,14 +22,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    //  restore user session from localStorage
     const storedAccessToken = localStorage.getItem("accessToken");
     const storedRefreshToken = localStorage.getItem("refreshToken");
     const storedUserData = localStorage.getItem("userData");
 
     if (storedAccessToken && storedRefreshToken && storedUserData) {
       try {
-        // Parsing the stored user data
         const parsedUser = JSON.parse(storedUserData);
         setUser(parsedUser);
         setAccessToken(storedAccessToken);
@@ -59,6 +57,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    console.log("Logging out...");
+
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userData");
@@ -66,10 +66,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
+
+    window.location.href = "/login";
   };
 
   const refreshAccessToken = async (): Promise<boolean> => {
     if (!refreshToken) {
+      logout();
       return false;
     }
 
@@ -94,13 +97,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.setItem("accessToken", newAccessToken);
         localStorage.setItem("refreshToken", newRefreshToken);
 
-        // Update state
         setAccessToken(newAccessToken);
         setRefreshToken(newRefreshToken);
 
         return true;
       } else {
-        // If refresh fails, logout the user
+        console.log("Refresh token failed with status:", response.status);
         logout();
         return false;
       }
@@ -125,7 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// custom hook for accesing token
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
