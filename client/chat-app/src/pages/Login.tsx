@@ -30,7 +30,7 @@ const Login = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const accessToken = data.token || data.accessToken;
+        const accessToken = data.accessToken;
         const refreshToken = data.refreshToken;
         const userData = data.user || data;
 

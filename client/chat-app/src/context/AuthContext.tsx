@@ -62,6 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userData");
+    localStorage.removeItem("selectedRoomId");
+    localStorage.removeItem("selectedUser");
 
     setAccessToken(null);
     setRefreshToken(null);
@@ -78,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        "http://localhost:5204/api/account/refresh-token",
+        "http://localhost:5204/api/users/refreshToken",
         {
           method: "POST",
           headers: {
@@ -91,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (response.ok) {
         const data = await response.json();
 
-        const newAccessToken = data.token;
+        const newAccessToken = data.accessToken;
         const newRefreshToken = data.refreshToken;
 
         localStorage.setItem("accessToken", newAccessToken);

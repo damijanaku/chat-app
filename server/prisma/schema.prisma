@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -18,22 +20,55 @@ model User {
   updatedAt    DateTime  @updatedAt
   refreshToken String?
 
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  messages   Message[]
+  rooms      RoomMember[]
+  ownedRooms Room[]       @relation("RoomOwner")
+
+  @@map("users")
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User         @relation("RoomOwner", fields: [ownerId], references: [id])
+  messages Message[]
+  members  RoomMember[]
+
+  @@map("rooms")
 }
 
 model Message {
-  id         String   @id @default(uuid())
-  content    String   @db.Text
-  createdAt  DateTime @default(now())
-  read       Boolean  @default(false)
-  senderId   String
-  receiverId String
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  roomId    String
 
-  sender   User @relation("SentMessages", fields: [senderId], references: [id])
-  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
 
-  @@index([senderId])
-  @@index([receiverId])
+  @@index([userId])
+  @@index([roomId])
   @@index([createdAt])
+  @@map("messages")
+}
+
+model RoomMember {
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  role     String   @default("member")
+
+  room Room @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([roomId, userId])
+  @@index([userId])
+  @@index([roomId])
+  @@map("room_members")
 }

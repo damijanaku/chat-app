@@ -1,28 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
+import ChatContainer from "../../components/ChatContainer";
+
+interface User {
+  _id: string;
+  name: string;
+  username: string;
+  birthday: string;
+  createdAt: string;
+}
 
 const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [roomId, setRoomId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const savedRoomId = localStorage.getItem("selectedRoomId");
+    const savedUser = localStorage.getItem("selectedUser");
+
+    if (savedRoomId) {
+      setRoomId(savedRoomId);
+    }
+    if (savedUser) {
+      try {
+        setSelectedUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error("Failed to parse saved user:", error);
+        localStorage.removeItem("selectedUser");
+      }
+    }
+  }, []);
+
+  const handleUserSelect = (user: User, roomId: string) => {
+    setSelectedUser(user);
+    setRoomId(roomId);
+
+    localStorage.setItem("selectedRoomId", roomId);
+    localStorage.setItem("selectedUser", JSON.stringify(user));
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar isOpen={isOpen} onToggle={() => setIsOpen((prev) => !prev)} />
+      <Navbar
+        isOpen={isOpen}
+        onToggle={() => setIsOpen((prev) => !prev)}
+        onUserSelect={handleUserSelect}
+      />
 
       <div
-        className={`transition-all duration-300 p-8 ${
+        className={`transition-all duration-300 p-8 h-screen ${
           isOpen ? "ml-64" : "ml-0"
         }`}
       >
-        <h1 className="text-2xl font-bold mt-12">Dashboard</h1>
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold">Card 1</h2>
-            <p>Content goes here</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold">Card 2</h2>
-            <p>Content goes here</p>
-          </div>
+        <div className="h-full">
+          <ChatContainer
+            roomId={roomId}
+            roomName={selectedUser?.name || "Chat Room"}
+            otherUser={selectedUser || undefined}
+          />
         </div>
       </div>
     </div>
