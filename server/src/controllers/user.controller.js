@@ -2,6 +2,9 @@ import prisma from '../lib/prisma.js';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
 const generateTokens = (user) => {
     const payload = {
         userid: user.id,
@@ -9,8 +12,8 @@ const generateTokens = (user) => {
         username: user.username
     };
 
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userid: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userid: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
     return { accessToken, refreshToken };
 };
@@ -99,6 +102,38 @@ const loginUser = async (req, res) => {
         return res.status(500).json({ message: 'Error when logging in user', error: error.message });
     }
 };
+
+const changeProfilePicture = async (req, res) => {
+    const userId = req.user.userid; // Note: changed from userId to userid to match your auth
+
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { avatarUrl: req.file.path }
+        });
+
+        const userToReturn = {
+            _id: updatedUser.id,
+            name: updatedUser.name,
+            username: updatedUser.username,
+            birthday: updatedUser.birthday,
+            avatarUrl: updatedUser.avatarUrl,
+            createdAt: updatedUser.createdAt
+        };
+
+        return res.status(200).json({ 
+            message: 'Profile picture updated successfully',
+            user: userToReturn 
+        });
+    } catch (error) {
+        console.error('Error changing profile picture:', error);
+        return res.status(500).json({ message: 'Error changing profile picture', error: error.message });
+    }
+}
 
 const handleRefreshToken = async (req, res) => {
     const authHeader = req.headers['authorization'];
@@ -274,5 +309,6 @@ export default {
     profile,
     getUserByUsername,
     updateUser,
-    removeUser
+    removeUser,
+    changeProfilePicture
 };

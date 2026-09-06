@@ -1,18 +1,20 @@
+import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import prisma from './lib/prisma.js';
-import { createApp } from '../app.js' 
-
-interface EventResponse {
-    status: string;
-}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import prisma from './lib/prisma.js';
+import { createApp } from '../app.js';
+
+interface EventResponse {
+    status: string;
+}
 
 const PORT = process.env.PORT || 3000;
 
@@ -36,20 +38,21 @@ async function startServer() {
             socket.on('join_room', async (roomId: string, callback?: ({ status }: EventResponse) => void) => {
                 await socket.join(roomId);
                 callback?.({ status: 'room join acknowledged' });
-              });
-              socket.on('leave_room', async (roomId: string, callback?: ({ status }: EventResponse) => void) => {
+            });
+            
+            socket.on('leave_room', async (roomId: string, callback?: ({ status }: EventResponse) => void) => {
                 await socket.leave(roomId);
                 callback?.({ status: 'room leave acknowledged' });
-              });
+            });
           
             socket.on('disconnect', () => console.log('user disconnected'));
         });
-
 
         httpServer.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
             console.log(`http://localhost:${PORT}`);
             console.log(`Health check: http://localhost:${PORT}/health`);
+            console.log(`Uploads available at: http://localhost:${PORT}/uploads`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

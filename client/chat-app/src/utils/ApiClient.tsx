@@ -16,10 +16,15 @@ export const useApiClient = () => {
 
       const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
 
+      // checking if body is FormData
       const isFormData = fetchOptions.body instanceof FormData;
-      const headers: Record<string, string> = isFormData
-        ? {}
-        : { "Content-Type": "application/json" };
+      
+      // Only set Content-Type header if not FormData
+      const headers: Record<string, string> = {};
+      
+      if (!isFormData) {
+        headers["Content-Type"] = "application/json";
+      }
 
       if (requiresAuth) {
         if (!accessToken) {
@@ -34,6 +39,11 @@ export const useApiClient = () => {
         ...headers,
         ...fetchOptions.headers,
       };
+
+      // Don't stringify FormData
+      if (fetchOptions.body && !isFormData && typeof fetchOptions.body === 'object') {
+        fetchOptions.body = JSON.stringify(fetchOptions.body);
+      }
 
       let response = await fetch(fullUrl, fetchOptions);
 

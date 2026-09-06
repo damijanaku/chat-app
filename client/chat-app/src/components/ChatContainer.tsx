@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { FaPhone } from "react-icons/fa6";
 import { IoChatbubbleEllipses } from "react-icons/io5";
-import { IoIosCamera } from "react-icons/io";
+import { IoIosCamera, IoMdClose } from "react-icons/io";
 import { FaArrowUp } from "react-icons/fa";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +11,7 @@ interface User {
   _id: string;
   name: string;
   username: string;
+  avatarUrl?: string;
 }
 
 interface Message {
@@ -19,10 +20,14 @@ interface Message {
   userId?: string;
   roomId?: string;
   createdAt: string;
+  isRead?: boolean;
+  imageUrl?: string;
+  messageType?: string;
   user?: {
     id: string;
     username: string;
     name: string;
+    avatarUrl?: string;
   };
 }
 
@@ -43,9 +48,16 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [hasMarkedRead, setHasMarkedRead] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const markReadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoadRef = useRef(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { accessToken, user: currentUser } = useAuth();
   const { apiCall } = useApiClient();
@@ -53,7 +65,48 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const apiCallRef = useRef(apiCall);
   useEffect(() => {
     apiCallRef.current = apiCall;
-  });
+  }, [apiCall]);
+
+  // Mark messages as read
+  const markMessagesAsRead = useCallback(async () => {
+    if (!roomId || !accessToken || hasMarkedRead) return;
+
+    try {
+      const response = await apiCallRef.current(
+        `/api/v1/messages/${roomId}/read`,
+        {
+          method: "PUT",
+          requiresAuth: true,
+        }
+      );
+
+      if (response.ok) {
+        setHasMarkedRead(true);
+        // Updating local messages to show as read
+        setMessages((prev) =>
+          prev.map((msg) => 
+            msg.userId !== currentUser?._id 
+              ? { ...msg, isRead: true } 
+              : msg
+          )
+        );
+        console.log("Messages marked as read");
+      }
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  }, [roomId, accessToken, hasMarkedRead, currentUser?._id]);
+
+  // Debounced mark as read
+  const debouncedMarkAsRead = useCallback(() => {
+    if (markReadTimeoutRef.current) {
+      clearTimeout(markReadTimeoutRef.current);
+    }
+
+    markReadTimeoutRef.current = setTimeout(() => {
+      markMessagesAsRead();
+    }, 1500);
+  }, [markMessagesAsRead]);
 
   // Socket connection
   useEffect(() => {
@@ -82,14 +135,28 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     socketInstance.on("chat_message", (message: Message) => {
       console.log("Received chat_message:", message);
       setMessages((prev) => [...prev, message]);
+      
+      // Only marks as read if message is from someone else and not already read
+      if (message.userId !== currentUser?._id && !message.isRead) {
+        debouncedMarkAsRead();
+      }
+    });
+
+    socketInstance.on("messages_read", (data: { userId: string; roomId: string; count: number }) => {
+      console.log("Messages read by other user:", data);
     });
 
     return () => {
+      if (markReadTimeoutRef.current) {
+        clearTimeout(markReadTimeoutRef.current);
+      }
       socketInstance.emit("leave_room", roomId);
       socketInstance.disconnect();
       socketRef.current = null;
+      setHasMarkedRead(false);
+      isFirstLoadRef.current = true;
     };
-  }, [roomId, accessToken]);
+  }, [roomId, accessToken, currentUser?._id, debouncedMarkAsRead]);
 
   // Fetch existing messages
   useEffect(() => {
@@ -120,6 +187,14 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         console.log("Messages response:", data);
         if (!cancelled) {
           setMessages(data.messages || []);
+          
+          // Only marks as read on first load
+          if (isFirstLoadRef.current && data.messages?.length > 0) {
+            isFirstLoadRef.current = false;
+            setTimeout(() => {
+              markMessagesAsRead();
+            }, 1000);
+          }
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -131,37 +206,107 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
     fetchMessages();
     return () => {
       cancelled = true;
+      if (markReadTimeoutRef.current) {
+        clearTimeout(markReadTimeoutRef.current);
+      }
     };
-  }, [roomId, accessToken]);
+  }, [roomId, accessToken]); 
 
-  // Auto-scroll
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Marks as read when user interacts - only if there are unread messages
+  const handleUserInteraction = useCallback(() => {
+    const hasUnreadMessages = messages.some(
+      msg => msg.userId !== currentUser?._id && !msg.isRead
+    );
+    
+    if (hasUnreadMessages) {
+      debouncedMarkAsRead();
+    }
+  }, [messages, currentUser?._id, debouncedMarkAsRead]);
+
+  // Handle image selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Image selected:', file);
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid image (JPEG, PNG, GIF, or WEBP)');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image size should be less than 10MB');
+        return;
+      }
+
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remove selected image
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle send message with image support
   const handleSendMessage = useCallback(async () => {
     const messageContent = inputValue.trim();
-    if (!messageContent || !roomId) return;
+    
+    // Check if there's content or image to send
+    if ((!messageContent && !selectedImage) || !roomId || isSending) {
+      return;
+    }
 
-    setInputValue("");
+    setIsSending(true);
 
     try {
-      const response = await apiCallRef.current("/api/v1/messages", {
-        method: "POST",
+      const formData = new FormData();
+      formData.append('roomId', roomId);
+      
+      if (messageContent) {
+        formData.append('content', messageContent);
+      }
+      
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+
+      const response = await apiCallRef.current('/api/v1/messages', {
+        method: 'POST',
         requiresAuth: true,
-        body: JSON.stringify({ roomId, content: messageContent }),
+        body: formData,
       });
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        console.error("Failed to send message:", err);
+        console.error('Failed to send message:', err);
         setInputValue(messageContent);
+      } else {
+        setInputValue('');
+        removeSelectedImage();
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error('Error sending message:', error);
       setInputValue(messageContent);
+    } finally {
+      setIsSending(false);
     }
-  }, [inputValue, roomId]);
+  }, [inputValue, selectedImage, roomId, isSending]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -187,6 +332,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const renderMessage = (message: Message) => {
     const senderId = message.userId || message.user?.id;
     const isOwnMessage = senderId === currentUser?._id;
+    const isRead = message.isRead;
+    const fullImageUrl = getFullImageUrl(message.imageUrl);
 
     return (
       <div
@@ -205,17 +352,59 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               {message.user.name}
             </div>
           )}
-          <p className="break-words">{message.content}</p>
+          
+          {message.imageUrl && (
+          <img 
+            src={fullImageUrl ?? undefined}
+            alt="Message attachment"
+            className="max-w-full rounded-lg mb-2 max-h-60 object-cover cursor-pointer"
+            onClick={() => window.open(fullImageUrl ?? undefined, '_blank')}
+          />
+        )}
+          
+          {message.content && (
+            <p className="break-words">{message.content}</p>
+          )}
+          
           <div
-            className={`text-xs mt-1 ${
+            className={`text-xs mt-1 flex items-center gap-1 ${
               isOwnMessage ? "text-blue-100" : "text-gray-400"
             }`}
           >
             {formatTimestamp(message.createdAt)}
+            
+            {isOwnMessage && (
+              <span className="ml-1">
+                {isRead ? "✓✓" : "✓"}
+              </span>
+            )}
           </div>
         </div>
       </div>
     );
+  };
+
+  // Listen for scroll events to mark as read
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    if (target.scrollTop > 0) {
+      const hasUnreadMessages = messages.some(
+        msg => msg.userId !== currentUser?._id && !msg.isRead
+      );
+      if (hasUnreadMessages) {
+        debouncedMarkAsRead();
+      }
+    }
+  }, [messages, currentUser?._id, debouncedMarkAsRead]);
+
+  const getFullImageUrl = (imageUrl: string | null | undefined): string | null => {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    const baseUrl = 'http://localhost:3000'; 
+    const cleanUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+    return `${baseUrl}${cleanUrl}`;
   };
 
   if (!roomId) {
@@ -318,7 +507,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100"
+        onScroll={handleScroll}
+        onClick={handleUserInteraction}
+      >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <IoChatbubbleEllipses size="50" />
@@ -339,35 +532,78 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
         )}
       </div>
 
-      {/* Input area */}
-      <div className="p-2 flex flex-row rounded-lg items-center bg-white w-full border-t border-gray-200">
-        <button className="flex-shrink-0 p-2 mr-1 rounded-2xl bg-gray-200 hover:bg-gray-300 transition-colors">
-          <IoIosCamera size="25" />
-        </button>
-        <div className="flex-1 min-w-0 mx-1">
+      {/* Input area with image support */}
+      <div className="flex flex-col bg-white border-t border-gray-200">
+        {/* Image Preview */}
+        {imagePreview && (
+          <div className="relative p-2 border-b border-gray-200 bg-gray-50">
+            <div className="relative inline-block">
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                className="max-h-32 rounded-lg object-cover"
+              />
+              <button
+                onClick={removeSelectedImage}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                disabled={isSending}
+              >
+                <IoMdClose size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="p-2 flex flex-row rounded-lg items-center">
+          <button 
+            className="flex-shrink-0 p-2 mr-1 rounded-2xl bg-gray-200 hover:bg-gray-300 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending}
+          >
+            <IoIosCamera size="25" className={isSending ? "opacity-50" : ""} />
+          </button>
+          
           <input
-            className="focus:outline-none w-full px-2 py-1"
-            type="text"
-            placeholder="Enter your message"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={handleImageSelect}
+            className="hidden"
+            disabled={isSending}
           />
+
+          <div className="flex-1 min-w-0 mx-1">
+            <input
+              className="focus:outline-none w-full px-2 py-1"
+              type="text"
+              placeholder={selectedImage ? "Add a caption..." : "Enter your message"}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={handleUserInteraction}
+              disabled={isSending}
+            />
+          </div>
+
+          <button
+            className={`flex-shrink-0 p-3 ml-1 rounded-2xl transition-colors ${
+              (inputValue.trim() || selectedImage) && !isSending
+                ? "bg-blue-500 hover:bg-blue-600 cursor-pointer"
+                : "bg-gray-200 cursor-not-allowed opacity-50"
+            }`}
+            disabled={(!inputValue.trim() && !selectedImage) || isSending}
+            onClick={handleSendMessage}
+          >
+            {isSending ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <FaArrowUp
+                size="15"
+                className={(inputValue.trim() || selectedImage) ? "text-white" : "text-gray-500"}
+              />
+            )}
+          </button>
         </div>
-        <button
-          className={`flex-shrink-0 p-3 ml-1 rounded-2xl transition-colors ${
-            inputValue.trim()
-              ? "bg-blue-500 hover:bg-blue-600 cursor-pointer"
-              : "bg-gray-200 cursor-not-allowed opacity-50"
-          }`}
-          disabled={!inputValue.trim()}
-          onClick={handleSendMessage}
-        >
-          <FaArrowUp
-            size="15"
-            className={inputValue.trim() ? "text-white" : "text-gray-500"}
-          />
-        </button>
       </div>
     </div>
   );
