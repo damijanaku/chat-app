@@ -85,6 +85,8 @@ const loginUser = async (req, res) => {
             _id: user.id,
             name: user.name,
             username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl ?? null,
             birthday: user.birthday,
             createdAt: user.createdAt
         };
@@ -245,6 +247,7 @@ const getUserByUsername = async (req, res) => {
             name: user.name,
             username: user.username,
             birthday: user.birthday,
+            avatarUrl: user.avatarUrl ?? null,
             createdAt: user.createdAt
         };
 

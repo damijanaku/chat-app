@@ -6,8 +6,7 @@ interface User {
   _id: string;
   name: string;
   username: string;
-  birthday: string;
-  createdAt: string;
+  avatarUrl?: string | null;
 }
 
 const Dashboard = () => {
@@ -41,7 +40,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 relative">
       <Navbar
         isOpen={isOpen}
         onToggle={() => setIsOpen((prev) => !prev)}

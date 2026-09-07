@@ -12,6 +12,8 @@ client/yarn.lock
 server/pnpm-lock.yaml
 client/pnpm-lock.yaml
 
+server/uploads/
+
 # Environment variables (SERVER)
 server/.env
 server/.env.local

@@ -11,7 +11,7 @@ interface User {
   _id: string;
   name: string;
   username: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
 }
 
 interface Message {
@@ -485,17 +485,22 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
               </svg>
             </button>
           )}
-          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-            {otherUser?.name?.charAt(0).toUpperCase() || "U"}
+          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+            {otherUser?.avatarUrl ? (
+              <img
+                src={getFullImageUrl(otherUser.avatarUrl) ?? undefined}
+                alt={`${otherUser.name || "User"}'s avatar`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-lg">{otherUser?.name?.charAt(0).toUpperCase() || "U"}</span>
+            )}
           </div>
           <div>
             <h3 className="font-semibold text-gray-800">
               {otherUser?.name || roomName}
             </h3>
-            <p className="text-sm text-green-500 flex items-center">
-              <span className="w-2 h-2 bg-green-500 rounded-full inline-block mr-1"></span>
-              Online
-            </p>
+
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2 p-4">

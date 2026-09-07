@@ -11,7 +11,7 @@ router.post('/refreshToken', userController.handleRefreshToken);
 
 router.get('/profile', authenticateToken, userController.profile);
 router.get('/username/:username', authenticateToken, userController.getUserByUsername);
-router.post('/profile-picture', 
+router.put('/profile-picture', 
     authenticateToken, 
     uploadAvatar.single('profilePicture'), 
     userController.changeProfilePicture
