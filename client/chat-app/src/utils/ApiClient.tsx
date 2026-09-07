@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { useCallback } from "react";
 
 const API_BASE_URL = "http://localhost:3000";
 
@@ -9,41 +10,44 @@ interface RequestOptions extends RequestInit {
 export const useApiClient = () => {
   const { accessToken, refreshAccessToken, logout } = useAuth();
 
-  const apiCall = async (url: string, options: RequestOptions = {}) => {
-    const { requiresAuth = true, ...fetchOptions } = options;
+  const apiCall = useCallback(
+    async (url: string, options: RequestOptions = {}) => {
+      const { requiresAuth = true, ...fetchOptions } = options;
 
-    const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+      const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
 
-    const isFormData = fetchOptions.body instanceof FormData;
-    const headers: Record<string, string> = isFormData
-      ? {}
-      : { "Content-Type": "application/json" };
-
-    if (requiresAuth) {
-      if (!accessToken) {
-        const error = new Error("No access token available");
-        (error as any).status = 401;
-        throw error;
+      // checking if body is FormData
+      const isFormData = fetchOptions.body instanceof FormData;
+      
+      // Only set Content-Type header if not FormData
+      const headers: Record<string, string> = {};
+      
+      if (!isFormData) {
+        headers["Content-Type"] = "application/json";
       }
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    }
 
-    fetchOptions.headers = {
-      ...headers,
-      ...fetchOptions.headers,
-    };
+      if (requiresAuth) {
+        if (!accessToken) {
+          const error = new Error("No access token available");
+          (error as any).status = 401;
+          throw error;
+        }
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
 
-    try {
+      fetchOptions.headers = {
+        ...headers,
+        ...fetchOptions.headers,
+      };
+
+      // Don't stringify FormData
+      if (fetchOptions.body && !isFormData && typeof fetchOptions.body === 'object') {
+        fetchOptions.body = JSON.stringify(fetchOptions.body);
+      }
+
       let response = await fetch(fullUrl, fetchOptions);
 
-      console.log(`API Call to ${fullUrl}:`, {
-        status: response.status,
-        statusText: response.statusText,
-      });
-
       if (response.status === 401 && requiresAuth) {
-        console.log("Access token expired, attempting refresh...");
-
         const refreshSuccess = await refreshAccessToken();
 
         if (refreshSuccess) {
@@ -53,8 +57,6 @@ export const useApiClient = () => {
               ...fetchOptions.headers,
               Authorization: `Bearer ${newToken}`,
             };
-
-            // Retry the request
             response = await fetch(fullUrl, fetchOptions);
           } else {
             throw new Error("Failed to get new token");
@@ -65,31 +67,10 @@ export const useApiClient = () => {
         }
       }
 
-      if (!response.ok) {
-        let errorMessage = `Request failed with status ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          try {
-            const text = await response.text();
-            if (text) {
-              errorMessage = text;
-            }
-          } catch {}
-        }
-        const error = new Error(errorMessage);
-        (error as any).status = response.status;
-        (error as any).response = response;
-        throw error;
-      }
-
       return response;
-    } catch (error) {
-      console.error("API call failed:", error);
-      throw error;
-    }
-  };
+    },
+    [accessToken, refreshAccessToken, logout]
+  );
 
   return { apiCall };
 };

@@ -1,12 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+export interface AuthUser {
+  _id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatarUrl?: string | null;
+}
+
 interface AuthContextType {
-  user: any | null;
+  user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
-  login: (accessToken: string, refreshToken: string, userData: any) => void;
+  login: (accessToken: string, refreshToken: string, userData: AuthUser) => void;
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
+  updateUser: (partial: Partial<AuthUser>) => void;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -16,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (storedAccessToken && storedRefreshToken && storedUserData) {
       try {
-        const parsedUser = JSON.parse(storedUserData);
+        const parsedUser = JSON.parse(storedUserData) as AuthUser;
         setUser(parsedUser);
         setAccessToken(storedAccessToken);
         setRefreshToken(storedRefreshToken);
@@ -45,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = (
     newAccessToken: string,
     newRefreshToken: string,
-    userData: any
+    userData: AuthUser
   ) => {
     localStorage.setItem("accessToken", newAccessToken);
     localStorage.setItem("refreshToken", newRefreshToken);
@@ -62,12 +71,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userData");
+    localStorage.removeItem("selectedRoomId");
+    localStorage.removeItem("selectedUser");
 
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
 
     window.location.href = "/login";
+  };
+
+  // rest of the app sees the new values without a full refetch.
+  const updateUser = (partial: Partial<AuthUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...partial };
+      localStorage.setItem("userData", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const refreshAccessToken = async (): Promise<boolean> => {
@@ -78,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        "http://localhost:5204/api/account/refresh-token",
+        "http://localhost:5204/api/users/refreshToken",
         {
           method: "POST",
           headers: {
@@ -91,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (response.ok) {
         const data = await response.json();
 
-        const newAccessToken = data.token;
+        const newAccessToken = data.accessToken;
         const newRefreshToken = data.refreshToken;
 
         localStorage.setItem("accessToken", newAccessToken);
@@ -120,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     login,
     logout,
     refreshAccessToken,
+    updateUser,
     isLoading,
     isAuthenticated: !!user && !!accessToken,
   };

@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/(authenticated)/Dashboard";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import Settings from "./pages/(authenticated)/Settings";
 
 function App() {
   return (
@@ -21,10 +22,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
   );
 }
-
 export default App;

@@ -2,6 +2,9 @@ import prisma from '../lib/prisma.js';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
 const generateTokens = (user) => {
     const payload = {
         userid: user.id,
@@ -9,8 +12,8 @@ const generateTokens = (user) => {
         username: user.username
     };
 
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userid: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userid: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
     return { accessToken, refreshToken };
 };
@@ -23,7 +26,7 @@ const registerUser = async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         
-        const savedUser = await prisma.user.create({
+        const savedUser = await prisma.user.create({ 
             data: {
                 name: req.body.name,
                 username: req.body.username,
@@ -56,9 +59,11 @@ const loginUser = async (req, res) => {
     }
 
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({  
             where: { username: req.body.username }
         });
+
+        console.log('User found:', user ? 'Yes' : 'No'); 
 
         if (!user) {
             return res.status(401).json({ message: 'Wrong username or password' });
@@ -71,7 +76,7 @@ const loginUser = async (req, res) => {
 
         const { accessToken, refreshToken } = generateTokens(user);
 
-        await prisma.user.update({
+        await prisma.user.update({  
             where: { id: user.id },
             data: { refreshToken }
         });
@@ -80,20 +85,57 @@ const loginUser = async (req, res) => {
             _id: user.id,
             name: user.name,
             username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl ?? null,
             birthday: user.birthday,
             createdAt: user.createdAt
         };
 
-        return res.status(200).json({
+        const response = {  
             message: "User logged in successfully",
             user: userToReturn,
             accessToken,
             refreshToken
-        });
+        };
+
+        return res.status(200).json(response);
     } catch (error) {
+        console.error('Login error:', error); 
         return res.status(500).json({ message: 'Error when logging in user', error: error.message });
     }
 };
+
+const changeProfilePicture = async (req, res) => {
+    const userId = req.user.userid; // Note: changed from userId to userid to match your auth
+
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { avatarUrl: req.file.path }
+        });
+
+        const userToReturn = {
+            _id: updatedUser.id,
+            name: updatedUser.name,
+            username: updatedUser.username,
+            birthday: updatedUser.birthday,
+            avatarUrl: updatedUser.avatarUrl,
+            createdAt: updatedUser.createdAt
+        };
+
+        return res.status(200).json({ 
+            message: 'Profile picture updated successfully',
+            user: userToReturn 
+        });
+    } catch (error) {
+        console.error('Error changing profile picture:', error);
+        return res.status(500).json({ message: 'Error changing profile picture', error: error.message });
+    }
+}
 
 const handleRefreshToken = async (req, res) => {
     const authHeader = req.headers['authorization'];
@@ -104,7 +146,7 @@ const handleRefreshToken = async (req, res) => {
     }
 
     try {
-        const user = await prisma.user.findFirst({
+        const user = await prisma.user.findFirst({ 
             where: { refreshToken }
         });
 
@@ -118,21 +160,19 @@ const handleRefreshToken = async (req, res) => {
             return res.status(403).json({ message: 'Invalid token payload' });
         }
 
-        //  new Access Token
         const accessToken = jwt.sign(
             { userid: user.id, email: user.email, username: user.username },
             process.env.JWT_SECRET,
             { expiresIn: '15m' }
         );
 
-        // new Refresh Token
         const newRefreshToken = jwt.sign(
             { userid: user.id },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
 
-        await prisma.user.update({
+        await prisma.user.update({  
             where: { id: user.id },
             data: { refreshToken: newRefreshToken }
         });
@@ -151,12 +191,12 @@ const logoutUser = async (req, res) => {
     if (!refreshToken) return res.status(204).send();
 
     try {
-        const user = await prisma.user.findFirst({
+        const user = await prisma.user.findFirst({  
             where: { refreshToken }
         });
 
         if (user) {
-            await prisma.user.update({
+            await prisma.user.update({  
                 where: { id: user.id },
                 data: { refreshToken: null }
             });
@@ -170,7 +210,7 @@ const logoutUser = async (req, res) => {
 
 const profile = async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({ 
             where: { id: req.user.userid }
         });
 
@@ -194,7 +234,7 @@ const profile = async (req, res) => {
 
 const getUserByUsername = async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({ 
             where: { username: req.params.username }
         });
 
@@ -207,6 +247,7 @@ const getUserByUsername = async (req, res) => {
             name: user.name,
             username: user.username,
             birthday: user.birthday,
+            avatarUrl: user.avatarUrl ?? null,
             createdAt: user.createdAt
         };
 
@@ -227,7 +268,7 @@ const updateUser = async (req, res) => {
         if (req.body.password) updateData.password = await bcrypt.hash(req.body.password, 10);
         if (req.body.birthday) updateData.birthday = new Date(req.body.birthday);
 
-        const updatedUser = await prisma.user.update({
+        const updatedUser = await prisma.user.update({  
             where: { id: userId },
             data: updateData
         });
@@ -253,7 +294,7 @@ const removeUser = async (req, res) => {
     try {
         const userId = req.user.userid; 
         
-        await prisma.user.delete({
+        await prisma.user.delete({  
             where: { id: userId }
         });
         
@@ -271,5 +312,6 @@ export default {
     profile,
     getUserByUsername,
     updateUser,
-    removeUser
+    removeUser,
+    changeProfilePicture
 };

@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken"
+import dotenv from 'dotenv';
+dotenv.config();
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = (req, res, next) => {    
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -20,9 +22,7 @@ const authenticateToken = (req, res, next) => {
             return res.status(403).json({ message: 'Invalid token format.' });
         }
         return res.status(403).json({ message: 'Forbidden - Invalid or expired token' });
-        
     }
-
 }
 
 export default authenticateToken;
