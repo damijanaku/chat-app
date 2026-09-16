@@ -5,6 +5,8 @@ import { useApiClient } from "../utils/ApiClient";
 import { useAuth } from "../context/AuthContext";
 import { CiSettings } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
+import { IoMdArrowRoundBack } from "react-icons/io";
+import { IoMdArrowRoundForward } from "react-icons/io";
 
 interface User {
   _id: string;
@@ -208,7 +210,7 @@ async function getUsers(event: React.SubmitEvent<HTMLFormElement>) {
           onClick={onToggle}
           className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow transition-colors duration-200 hover:bg-gray-100"
         >
-          {isOpen ? "<" : ">"}
+          {isOpen ? <IoMdArrowRoundBack /> : <IoMdArrowRoundForward />}
         </button>
         <div
           className={`
@@ -237,18 +239,18 @@ async function getUsers(event: React.SubmitEvent<HTMLFormElement>) {
         onClick={onToggle}
         className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow transition-colors duration-200 hover:bg-gray-100"
       >
-        {isOpen ? "<" : ">"}
+        {isOpen ? <IoMdArrowRoundBack /> : <IoMdArrowRoundForward />}
       </button>
 
       <div
         className={`
           fixed top-0 left-0 h-full bg-white shadow-lg z-40
-          transition-transform duration-300 ease-in-out
+          transition-transform duration-300 ease-in-out 
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           w-64 flex flex-col
         `}
       >
-        <div className="flex items-center justify-end h-16 px-4 border-b border-gray-200">
+        <div className="flex items-center justify-end h-16 px-4 border-b border-gray-200 ">
           <button
             onClick={handleLogout}
             className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-100"

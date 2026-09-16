@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { FaPhone } from "react-icons/fa6";
 import { IoChatbubbleEllipses } from "react-icons/io5";
 import { IoIosCamera, IoMdClose } from "react-icons/io";
 import { FaArrowUp } from "react-icons/fa";
@@ -409,7 +408,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
   if (!roomId) {
     return (
-      <div className="flex flex-col h-190 w-full max-w-2xl mx-auto border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
+      <div className="flex h-full min-h-[32rem] w-full flex-col border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
         <IoChatbubbleEllipses size="60" className="text-gray-300" />
         <h3 className="text-xl font-semibold text-gray-400 mt-4">
           No Chat Selected
@@ -423,7 +422,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col h-190 w-full max-w-2xl mx-auto border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
+      <div className="flex h-full min-h-[32rem] w-full flex-col border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         <p className="mt-4 text-gray-500">Loading messages...</p>
       </div>
@@ -432,7 +431,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col h-190 w-full max-w-2xl mx-auto border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
+      <div className="flex h-full min-h-[32rem] w-full flex-col border border-gray-200 rounded-lg bg-white shadow-lg items-center justify-center">
         <div className="text-red-500 mb-4">
           <svg
             className="w-16 h-16"
@@ -461,7 +460,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-190 w-full max-w-2xl mx-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+    <div className="flex h-full min-h-[32rem] w-full flex-col border border-gray-200 rounded-lg bg-white shadow-lg">
       {/* Header */}
       <div className="flex items-center p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <div className="flex items-center gap-3">
@@ -502,12 +501,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             </h3>
 
           </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2 p-4">
-          <FaPhone
-            className="cursor-pointer hover:text-blue-500 transition-colors"
-            size={20}
-          />
         </div>
       </div>
 

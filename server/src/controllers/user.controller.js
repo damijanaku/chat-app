@@ -262,7 +262,7 @@ const updateUser = async (req, res) => {
 
     try {
         const updateData = {};
-
+        if (req.body.name) updateData.name = req.body.name;
         if (req.body.username) updateData.username = req.body.username;
         if (req.body.email) updateData.email = req.body.email;
         if (req.body.password) updateData.password = await bcrypt.hash(req.body.password, 10);
@@ -275,9 +275,11 @@ const updateUser = async (req, res) => {
 
         const userToReturn = {
             _id: updatedUser.id,
+            name: updatedUser.name,
             username: updatedUser.username,
             email: updatedUser.email,
             birthday: updatedUser.birthday,
+            avatarUrl: updatedUser.avatarUrl ?? null,
             createdAt: updatedUser.createdAt
         };
 

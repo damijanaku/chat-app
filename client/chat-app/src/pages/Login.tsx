@@ -53,15 +53,15 @@ const Login = () => {
   }
 
   return (
-    <div className="flex flex-1 justify-center items-center bg-[#FFC5BB] min-h-screen">
-      <div className="flex flex-col gap-2 bg-white p-8 rounded-lg shadow-md w-xl max-w-md">
+    <div className="flex flex-1 justify-center items-center min-h-screen bg-gray-50">
+      <div className="flex flex-col gap-2 p-8 rounded-lg shadow-md w-xl max-w-md bg-white">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Login</h1>
         <p className="text-sm text-gray-500 text-center mb-4">
           Please enter your login information
         </p>
 
         {errorMessage && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mb-4 text-sm">
             {errorMessage}
           </div>
         )}
@@ -70,7 +70,7 @@ const Login = () => {
           <div>
             <label
               htmlFor="username"
-              className="mb-1 block text-sm font-medium text-[#F28378]"
+              className="mb-1 block text-sm font-medium text-gray-700"
             >
               Username
             </label>
@@ -81,14 +81,14 @@ const Login = () => {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded bg-white py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F28378] focus:border-transparent"
+              className="w-full p-2 border border-gray-300 rounded bg-white py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="mb-1 block text-sm font-medium text-[#F28378]"
+              className="mb-1 block text-sm font-medium text-gray-700"
             >
               Password
             </label>
@@ -99,14 +99,14 @@ const Login = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded bg-white py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F28378] focus:border-transparent"
+              className="w-full p-2 border border-gray-300 rounded bg-white py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full p-2 mt-4 rounded bg-[#EF9A9A] py-2.5 text-sm font-medium text-white transition-colors duration-300 hover:bg-[#E57373] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full p-2 mt-4 rounded bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors duration-300 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Logging in..." : "Submit"}
           </button>
@@ -116,7 +116,7 @@ const Login = () => {
           Don't have an account?{" "}
           <Link
             to="/register"
-            className="text-[#F28378] hover:underline font-medium"
+            className="text-blue-600 hover:underline font-medium"
           >
             Register
           </Link>
