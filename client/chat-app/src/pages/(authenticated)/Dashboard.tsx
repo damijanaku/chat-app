@@ -40,7 +40,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 relative">
+    <div className="min-h-screen relative">
       <Navbar
         isOpen={isOpen}
         onToggle={() => setIsOpen((prev) => !prev)}
@@ -48,7 +48,7 @@ const Dashboard = () => {
       />
 
       <div
-        className={`transition-all duration-300 p-8 h-screen ${
+        className={`transition-all duration-300 h-[calc(100vh-2rem)] p-4 md:p-8 ${
           isOpen ? "ml-64" : "ml-0"
         }`}
       >

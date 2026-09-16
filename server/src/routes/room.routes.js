@@ -5,8 +5,7 @@ import authenticateToken from '../middleware/auth.middleware.js';
 export function createRoomRouter(io) {
     const router = Router();
     const roomController = createRoomController(io);
-
-    router.get('/', authenticateToken, roomController.getRooms);
+    router.get('/conversations', authenticateToken, roomController.getRecentConversations);
     router.post('/', authenticateToken, roomController.getOrCreateRoom);
     router.post('/:roomId/join', authenticateToken, roomController.joinRoom);
     router.delete('/:roomId/leave', authenticateToken, roomController.leaveRoom);

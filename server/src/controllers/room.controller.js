@@ -99,6 +99,101 @@ export function createRoomController(io) {
         }
     };
 
-    return { getOrCreateRoom, joinRoom, leaveRoom, getRooms };
+    const getRecentConversations = async (req, res) => {
+      const userId = req.user.userid;
+      
+      try {
+          // getting all rooms where user is a member with their latest message
+          const rooms = await prisma.room.findMany({
+              where: {
+                  members: { some: { userId } }
+              },
+              include: {
+                  members: {
+                      include: {
+                          user: {
+                              select: {
+                                  id: true,
+                                  name: true,
+                                  username: true,
+                                  avatarUrl: true
+                              }
+                          }
+                      }
+                  },
+                  messages: {
+                      orderBy: { createdAt: 'desc' },
+                      take: 1,
+                      include: {
+                          user: {
+                              select: {
+                                  id: true,
+                                  name: true,
+                                  username: true
+                              }
+                          }
+                      }
+                  },
+                  _count: {
+                      select: {
+                          messages: true
+                      }
+                  }
+              },
+              orderBy: {
+                  updatedAt: 'desc'
+              }
+          });
+
+          const unreadCounts = await prisma.message.groupBy({
+              by: ['roomId'],
+              where: {
+                  roomId: { in: rooms.map(room => room.id) },
+                  userId: { not: userId },
+                  isRead: false
+              },
+              _count: { _all: true }
+          });
+
+          const unreadCountByRoomId = new Map(
+              unreadCounts.map(item => [item.roomId, item._count._all])
+          );
+
+          const conversations = rooms.map(room => {
+              // Find the other user in the room
+              const otherUser = room.members
+                  .filter(member => member.userId !== userId)
+                  .map(member => ({
+                      _id: member.user.id,
+                      name: member.user.name,
+                      username: member.user.username,
+                      avatarUrl: member.user.avatarUrl
+                  }))[0];
+
+              return {
+                  roomId: room.id,
+                  otherUser: otherUser || null,
+                  lastMessage: room.messages[0] || null,
+                  unreadCount: unreadCountByRoomId.get(room.id) || 0,
+                  updatedAt: room.updatedAt
+              };
+          }).sort((first, second) => {
+              const firstDate = first.lastMessage?.createdAt || first.updatedAt;
+              const secondDate = second.lastMessage?.createdAt || second.updatedAt;
+              return new Date(secondDate).getTime() - new Date(firstDate).getTime();
+          });
+
+          return res.status(200).json({ conversations });
+
+      } catch (error) {
+          console.error('GET RECENT CONVERSATIONS ERROR:', error);
+          return res.status(500).json({ 
+              message: 'Error fetching conversations', 
+              error: error.message 
+          });
+      }
+  };
+
+    return { getOrCreateRoom, joinRoom, leaveRoom, getRooms, getRecentConversations };
 
 }

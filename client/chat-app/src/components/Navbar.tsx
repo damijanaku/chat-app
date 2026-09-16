@@ -1,16 +1,29 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { MdOutlineSearch } from "react-icons/md";
 import { FiLogOut } from "react-icons/fi";
 import { useApiClient } from "../utils/ApiClient";
 import { useAuth } from "../context/AuthContext";
 import { CiSettings } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
+import { IoMdArrowRoundBack } from "react-icons/io";
+import { IoMdArrowRoundForward } from "react-icons/io";
 
 interface User {
   _id: string;
   name: string;
   username: string;
   avatarUrl?: string | null;
+}
+
+interface Conversation {
+  roomId: string;
+  otherUser: User | null;
+  lastMessage: {
+    content?: string | null;
+    imageUrl?: string | null;
+    createdAt: string;
+  } | null;
+  unreadCount: number;
 }
 
 interface NavbarProps {
@@ -26,6 +39,8 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
 
   const { apiCall } = useApiClient();
   const { isAuthenticated, logout, user: currentUser } = useAuth();
@@ -44,55 +59,86 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
   const currentUserAvatarUrl = getFullImageUrl(currentUser?.avatarUrl);
   const searchedUserAvatarUrl = getFullImageUrl(searchedUser?.avatarUrl);
 
-  async function getUsers(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!searchTerm.trim()) return;
-
-    setLoading(true);
-    setError(null);
-    setSearchedUser(null);
+  const loadRecentConversations = useCallback(async () => {
+    setIsLoadingConversations(true);
 
     try {
-      const response = await apiCall(`/api/v1/users/username/${searchTerm}`, {
+      const response = await apiCall("/api/v1/rooms/conversations", {
         method: "GET",
         requiresAuth: true,
       });
 
       if (response.ok) {
         const data = await response.json();
-
-        if (data.userToReturn) {
-          const userData = data.userToReturn;
-          setSearchedUser({
-            _id: userData._id,
-            name: userData.name,
-            username: userData.username,
-            avatarUrl: userData.avatarUrl || null, 
-          });
-          setError(null);
-        } else {
-          setError(`User "${searchTerm}" not found`);
-        }
-      } else if (response.status === 404) {
-        setError(`User "${searchTerm}" not found`);
-      } else {
-        setError(`Error: ${response.status} - Failed to fetch user`);
+        setConversations(data.conversations || []);
       }
-    } catch (err: any) {
-      if (err.message === "Session expired. Please login again.") {
-        setError("Session expired. Please login again.");
-      } else if (err.status === 401) {
-        setError("Authentication failed. Please login again.");
-        logout();
-      } else if (err.message.includes("No access token")) {
-        setError("Please login to search for users.");
-      } else {
-        setError(err.message || "An error occurred while fetching the user");
-      }
+    } catch (err) {
+      console.error("Error loading recent conversations:", err);
     } finally {
-      setLoading(false);
+      setIsLoadingConversations(false);
     }
+  }, [apiCall]);
+
+  useEffect(() => {
+    loadRecentConversations();
+  }, [loadRecentConversations]);
+
+async function getUsers(event: React.SubmitEvent<HTMLFormElement>) {
+  event.preventDefault();
+  if (!searchTerm.trim()) return;
+
+  setLoading(true);
+  setError(null);
+  setSearchedUser(null);
+
+  try {
+    const response = await apiCall(`/api/v1/users/username/${searchTerm}`, {
+      method: "GET",
+      requiresAuth: true,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+
+      if (data.userToReturn) {
+        const userData = data.userToReturn;
+        
+        if (userData._id === currentUser?._id) {
+          setError("You cannot search for yourself");
+          setSearchedUser(null);
+          return;
+        }
+
+        setSearchedUser({
+          _id: userData._id,
+          name: userData.name,
+          username: userData.username,
+          avatarUrl: userData.avatarUrl || null,
+        });
+        setError(null);
+      } else {
+        setError(`User "${searchTerm}" not found`);
+      }
+    } else if (response.status === 404) {
+      setError(`User "${searchTerm}" not found`);
+    } else {
+      setError(`Error: ${response.status} - Failed to fetch user`);
+    }
+  } catch (err: any) {
+    if (err.message === "Session expired. Please login again.") {
+      setError("Session expired. Please login again.");
+    } else if (err.status === 401) {
+      setError("Authentication failed. Please login again.");
+      logout();
+    } else if (err.message.includes("No access token")) {
+      setError("Please login to search for users.");
+    } else {
+      setError(err.message || "An error occurred while fetching the user");
+    }
+  } finally {
+    setLoading(false);
   }
+}
 
   const handleStartConversation = async () => {
     if (!searchedUser) return;
@@ -122,6 +168,8 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
           onUserSelect(searchedUser, roomId);
         }
 
+        await loadRecentConversations();
+
         // Clear the search
         setSearchTerm("");
         setSearchedUser(null);
@@ -142,6 +190,19 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
     logout();
   };
 
+  const handleConversationSelect = (conversation: Conversation) => {
+    if (!conversation.otherUser) return;
+
+    onUserSelect?.(conversation.otherUser, conversation.roomId);
+    setConversations((previous) =>
+      previous.map((item) =>
+        item.roomId === conversation.roomId
+          ? { ...item, unreadCount: 0 }
+          : item
+      )
+    );
+  };
+
   if (!isAuthenticated) {
     return (
       <>
@@ -149,7 +210,7 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
           onClick={onToggle}
           className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow transition-colors duration-200 hover:bg-gray-100"
         >
-          {isOpen ? "<" : ">"}
+          {isOpen ? <IoMdArrowRoundBack /> : <IoMdArrowRoundForward />}
         </button>
         <div
           className={`
@@ -178,18 +239,18 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
         onClick={onToggle}
         className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow transition-colors duration-200 hover:bg-gray-100"
       >
-        {isOpen ? "<" : ">"}
+        {isOpen ? <IoMdArrowRoundBack /> : <IoMdArrowRoundForward />}
       </button>
 
       <div
         className={`
           fixed top-0 left-0 h-full bg-white shadow-lg z-40
-          transition-transform duration-300 ease-in-out
+          transition-transform duration-300 ease-in-out 
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           w-64 flex flex-col
         `}
       >
-        <div className="flex items-center justify-end h-16 px-4 border-b border-gray-200">
+        <div className="flex items-center justify-end h-16 px-4 border-b border-gray-200 ">
           <button
             onClick={handleLogout}
             className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-100"
@@ -255,6 +316,56 @@ const Navbar = ({ isOpen, onToggle, onUserSelect }: NavbarProps) => {
 
           <div className="font-bold mb-2">
             <span>Conversations:</span>
+          </div>
+
+          {isLoadingConversations && (
+            <p className="text-sm text-gray-500">Loading conversations...</p>
+          )}
+
+          {!isLoadingConversations && conversations.length === 0 && (
+            <p className="text-sm text-gray-500">
+              No conversations yet. Search for a user to start one.
+            </p>
+          )}
+
+          <div className="space-y-1">
+            {conversations.map((conversation) => {
+              const user = conversation.otherUser;
+              if (!user) return null;
+
+              const avatarUrl = getFullImageUrl(user.avatarUrl);
+              const preview = conversation.lastMessage?.content ||
+                (conversation.lastMessage?.imageUrl ? "Image" : "No messages yet");
+
+              return (
+                <button
+                  key={conversation.roomId}
+                  onClick={() => handleConversationSelect(conversation)}
+                  className={"w-full flex items-center gap-3 p-2 text-left transition-colors"}
+                >
+                  <div className="w-10 h-10 round ed-full bg-blue-500 flex items-center justify-center text-white font-semibold overflow-hidden flex-shrink-0">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      user.name?.charAt(0).toUpperCase() || "U"
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`${conversation.unreadCount > 0 ? "font-bold" : "font-medium"} text-gray-800 truncate`}>
+                      {user.name}
+                    </p>
+                    <p className={`text-xs truncate ${conversation.unreadCount > 0 ? "font-bold text-gray-700" : "text-gray-500"}`}>
+                      {preview}
+                    </p>
+                  </div>
+                  {conversation.unreadCount > 0 && (
+                    <span className="min-w-5 h-5 px-1 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
+                      {conversation.unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
